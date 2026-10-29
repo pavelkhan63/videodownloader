@@ -40,23 +40,98 @@
 <p class="hint">নোট: এই সংস্করণটি ওয়েবসাইটের ফ্রন্টএন্ড ডেমো। প্রকৃত ডাউনলোড চালু করতে নিরাপদ ব্যাকএন্ড ও সমর্থিত উৎসের ইন্টিগ্রেশন লাগবে। উৎসে না থাকা রেজোলিউশন তৈরি করা যায় না।</p>
 </section>
 <section class="features"><article class="feature"><div class="ico">🎬</div><h3>HD কোয়ালিটি</h3><p>1080p, 720p থেকে কম রেজোলিউশন বেছে নেওয়ার ইন্টারফেস।</p></article><article class="feature"><div class="ico">🔊</div><h3>ভিডিও ও অডিও</h3><p>সমর্থিত উৎসে ভিডিওর সঙ্গে সাউন্ড রাখার জন্য প্রস্তুত ডিজাইন।</p></article><article class="feature"><div class="ico">📱</div><h3>সব স্ক্রিনে সুন্দর</h3><p>অ্যান্ড্রয়েড, আইফোন, ট্যাবলেট ও কম্পিউটারের উপযোগী।</p></article></section>
-<footer class="foot">নিজের বা ডাউনলোডের অনুমতি থাকা ভিডিও ব্যবহার করুন।<br>প্ল্যাটফর্মের শর্তাবলি ও কপিরাইট মেনে চলুন।</footer>
+<footer class="foot">নিজের বা ডাউনলোডের অনুমতি থাকা ভিডিও ব্যবহার করুন।<br>প্ল্যাটফর্মের শর্তাবলি ও কপিরাইট মেনে চলুন।<br>নিজের বা অনুমতি থাকা ভিডিওই ডাউনলোড করুন।</footer>
 </main>
 <script>
-const form=document.getElementById('form'), urlInput=document.getElementById('url'), msg=document.getElementById('message'), downloadBtn=document.getElementById('downloadBtn');
+const API='https://allvideodownload-5cdx.onrender.com';
+const form=document.getElementById('form'), urlInput=document.getElementById('url'), qualitySelect=document.getElementById('quality'), msg=document.getElementById('message'), downloadBtn=document.getElementById('downloadBtn');
 const adLink='https://asiafilm.org/4/71f92f1c17a327e98497060f4c8897d9';
-let validVideoUrl='', adOpened=false;
+let validVideoUrl='', adOpened=false, downloadUrl='', downloadReady=false, mergeTimer=null, baseInfoHtml='';
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function showMessage(text){msg.style.display='block';msg.textContent=text;}
-form.addEventListener('submit',e=>{e.preventDefault();let u;try{u=new URL(urlInput.value.trim())}catch{downloadBtn.hidden=true;showMessage('সঠিক ভিডিও লিংক দিন।');return}
-const host=u.hostname.toLowerCase().replace(/^www\./,'');
-const known=['youtube.com','youtu.be','m.youtube.com','facebook.com','fb.watch','instagram.com','tiktok.com'];
-if(!known.some(d=>host===d||host.endsWith('.'+d))){downloadBtn.hidden=true;showMessage('এই লিংকটি পরিচিত প্ল্যাটফর্মের নয়। YouTube, Facebook, Instagram বা TikTok-এর লিংক দিন।');return}
-validVideoUrl=u.href;adOpened=false;downloadBtn.hidden=false;showMessage('লিংকটি যাচাই করা হয়েছে। প্রথমবার “ডাউনলোড করুন” চাপলে বিজ্ঞাপন খুলবে। তবে এই সাইটের ডাউনলোড ব্যাকএন্ড এখনো যুক্ত করা হয়নি।');
+function showResult(html){msg.style.display='block';msg.innerHTML=html;}
+function stopMerge(){if(mergeTimer){clearInterval(mergeTimer);mergeTimer=null;}}
+function resolutionOf(f){const m=String(f.label||'').match(/(\d{3,4})\s*p/i);return m?parseInt(m[1],10):0;}
+function isAudioOnly(f){return /audio only/i.test(f.label||'')||/audio only/i.test(f.note||'');}
+function isVideoOnly(f){return /video only/i.test(f.label||'')||/video-only/i.test(f.note||'');}
+function bestMatch(list,wanted){return list.slice().sort(function(a,b){const da=Math.abs(resolutionOf(a)-wanted),db=Math.abs(resolutionOf(b)-wanted);if(da!==db)return da-db;return resolutionOf(b)-resolutionOf(a);})[0];}
+function qualityValue(){const m=(qualitySelect.value||'').match(/(\d+)/);return m?parseInt(m[1],10):480;}
+async function checkMerge(job){
+  try{
+    const r=await fetch(API+'/api/merge/status?job='+encodeURIComponent(job));
+    const d=await r.json().catch(function(){return {};});
+    const status=String(d.status||'').toLowerCase();
+    const stage=d.stage||d.status||'';
+    if(status==='ready'){
+      stopMerge();
+      downloadUrl=API+'/api/merge/file?job='+encodeURIComponent(job);
+      downloadReady=true;
+      downloadBtn.hidden=false;
+      showResult(baseInfoHtml+'<br>মার্জ প্রস্তুত (Ready)। প্রথমবার “ডাউনলোড করুন” চাপলে বিজ্ঞাপন খুলবে, দ্বিতীয়বার মার্জ করা ফাইল ডাউনলোড হবে।');
+    } else if(status==='error'||status==='failed'||d.ok===false) {
+      stopMerge();
+      downloadBtn.hidden=true;
+      showMessage(d.error||d.message||'মার্জ ব্যর্থ হয়েছে।');
+    } else {
+      showResult(baseInfoHtml+'<br>মার্জ চলছে: '+esc(stage)+' — প্রতি ৫ সেকেন্ডে অবস্থা যাচাই করা হচ্ছে।');
+    }
+  }catch(e){ showMessage('মার্জের অবস্থা যাচাই করা যায়নি: '+e.message); }
+}
+form.addEventListener('submit',async function(e){
+  e.preventDefault();
+  stopMerge();
+  downloadUrl=''; downloadReady=false; baseInfoHtml='';
+  let u;
+  try{u=new URL(urlInput.value.trim())}catch(err){downloadBtn.hidden=true;showMessage('সঠিক ভিডিও লিংক দিন।');return;}
+  const host=u.hostname.toLowerCase().replace(/^www\./,'');
+  const known=['youtube.com','youtu.be','m.youtube.com','facebook.com','fb.watch','instagram.com','tiktok.com'];
+  if(!known.some(function(d){return host===d||host.endsWith('.'+d)})){downloadBtn.hidden=true;showMessage('এই লিংকটি পরিচিত প্ল্যাটফর্মের নয়। YouTube, Facebook, Instagram বা TikTok-এর লিংক দিন।');return;}
+  validVideoUrl=u.href; adOpened=false; downloadBtn.hidden=true;
+  showMessage('ভিডিওর তথ্য আনা হচ্ছে…');
+  try{
+    const res=await fetch(API+'/api/resolve?url='+encodeURIComponent(u.href));
+    const data=await res.json().catch(function(){return {};});
+    if(!res.ok||!data.ok){downloadBtn.hidden=true;showMessage(data.error||data.message||('ব্যাকএন্ড ত্রুটি: '+res.status));return;}
+    const formats=Array.isArray(data.formats)?data.formats:[];
+    baseInfoHtml='<strong>'+esc(data.title||'')+'</strong><br>প্ল্যাটফর্ম: '+esc(data.platform||'')+' · লেখক: '+esc(data.author||'')+' · সময়: '+esc(data.duration||'');
+    if(data.thumbnail){baseInfoHtml+='<br><img src="'+esc(data.thumbnail)+'" alt="" style="max-width:100%;border-radius:12px;margin-top:10px">';}
+    if(data.note){baseInfoHtml+='<br>নোট: '+esc(data.note);}
+    const wanted=qualityValue();
+    const withSound=formats.filter(function(f){return f.url&&!isVideoOnly(f)&&!isAudioOnly(f);});
+    if(withSound.length){
+      const chosen=bestMatch(withSound,wanted);
+      downloadUrl=chosen.url; downloadReady=true; downloadBtn.hidden=false;
+      showResult(baseInfoHtml+'<br>নির্বাচিত ফরম্যাট: '+esc(chosen.label)+' (সাউন্ডসহ)<br>প্রথমবার “ডাউনলোড করুন” চাপলে বিজ্ঞাপন খুলবে, দ্বিতীয়বার ডাউনলোড শুরু হবে।');
+      return;
+    }
+    const isYouTube=String(data.platform||'').toLowerCase().indexOf('youtube')>=0||host.indexOf('youtube')>=0||host==='youtu.be';
+    if(isYouTube){
+      downloadBtn.hidden=false;
+      showResult(baseInfoHtml+'<br>এই ভিডিওতে সাউন্ডসহ ফরম্যাট পাওয়া যায়নি, তাই ভিডিও ও অডিও মার্জ করা হচ্ছে…');
+      const mres=await fetch(API+'/api/merge?url='+encodeURIComponent(u.href));
+      const mdata=await mres.json().catch(function(){return {};});
+      if(!mres.ok||!mdata.ok||!mdata.job){downloadBtn.hidden=true;showMessage(mdata.error||mdata.message||('মার্জ শুরু করা যায়নি: '+mres.status));return;}
+      const job=mdata.job;
+      checkMerge(job);
+      mergeTimer=setInterval(function(){checkMerge(job);},5000);
+      return;
+    }
+    const videoOnly=formats.filter(function(f){return f.url&&isVideoOnly(f);});
+    if(videoOnly.length){
+      const chosen=bestMatch(videoOnly,wanted);
+      downloadUrl=chosen.url; downloadReady=true; downloadBtn.hidden=false;
+      showResult(baseInfoHtml+'<br>নির্বাচিত ফরম্যাট: '+esc(chosen.label)+' — এই ফরম্যাটে সাউন্ড নেই (ভিডিও-শুধু)।<br>প্রথমবার “ডাউনলোড করুন” চাপলে বিজ্ঞাপন খুলবে, দ্বিতীয়বার ডাউনলোড শুরু হবে।');
+      return;
+    }
+    downloadBtn.hidden=true;
+    showMessage('এই ভিডিওর জন্য ডাউনলোডযোগ্য ফরম্যাট পাওয়া যায়নি।');
+  }catch(err){ downloadBtn.hidden=true; showMessage('ব্যাকএন্ডের সঙ্গে যোগাযোগ করা যায়নি: '+err.message); }
 });
-downloadBtn.addEventListener('click',()=>{
+downloadBtn.addEventListener('click',function(){
  if(!validVideoUrl){showMessage('আগে ভিডিও লিংক দিন এবং “ডাউনলোড প্রস্তুত করুন” চাপুন।');return;}
- if(!adOpened){adOpened=true;window.open(adLink,'_blank','noopener,noreferrer');showMessage('বিজ্ঞাপনের লিংক নতুন ট্যাবে খোলার চেষ্টা করা হয়েছে। এখন আবার “ডাউনলোড করুন” চাপলে ডাউনলোড সার্ভার দরকার হবে—এখনো সেটি যুক্ত নেই।');return;}
- showMessage('ব্যাকএন্ডের ডাউনলোড API এখনো প্রস্তুত নয়');
+ if(!adOpened){adOpened=true;window.open(adLink,'_blank','noopener,noreferrer');showMessage('বিজ্ঞাপনের লিংক নতুন ট্যাবে খোলার চেষ্টা করা হয়েছে। এখন আবার “ডাউনলোড করুন” চাপলে ডাউনলোড শুরু হবে।');return;}
+ if(!downloadReady){showMessage('ডাউনলোড এখনো প্রস্তুত নয়। মার্জ চললে কিছুক্ষণ পর আবার চাপুন।');return;}
+ window.open(downloadUrl,'_blank','noopener,noreferrer');
 });
 </script>
 <!-- Adsterra Social Bar -->

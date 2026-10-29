@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#10152b">
+<title>Video Downloader</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1020;--card:#141b31;--muted:#9eabc7;--text:#f7f8ff;--accent:#7c5cff;--accent2:#24c8b5}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Noto Sans Bengali",sans-serif;background:radial-gradient(ellipse at 15% 0%,#25204d 0,transparent 42%),radial-gradient(ellipse at 90% 20%,#123c49 0,transparent 35%),var(--bg);color:var(--text);min-height:100vh}
+.wrap{max-width:900px;margin:auto;padding:22px 18px 44px}.nav{display:flex;align-items:center;gap:12px;font-weight:800;font-size:19px}.logo{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 8px 25px #7c5cff55}.logo svg{width:23px}
+.hero{text-align:center;padding:54px 0 28px}.pill{display:inline-flex;align-items:center;gap:8px;border:1px solid #ffffff20;background:#ffffff09;border-radius:999px;padding:7px 12px;color:#c8d1ea;font-size:13px}.dot{width:7px;height:7px;background:#36dfaa;border-radius:50%}h1{font-size:clamp(35px,7vw,58px);line-height:1.1;letter-spacing:-1.7px;margin:20px 0 12px}.gradient{background:linear-gradient(90deg,#a99aff,#56e5d2);-webkit-background-clip:text;background-clip:text;color:transparent}.sub{max-width:570px;margin:auto;color:var(--muted);line-height:1.8;font-size:15px}
+.panel{background:linear-gradient(160deg,#19213aee,#11182beF);border:1px solid #ffffff18;border-radius:24px;padding:22px;box-shadow:0 22px 70px #0005;max-width:730px;margin:22px auto}.platforms{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:0 0 22px}.platform{border:1px solid #ffffff18;border-radius:12px;padding:9px 12px;color:#d9e0f2;font-size:13px;background:#ffffff06}.inputrow{display:flex;gap:10px}.url{flex:1;min-width:0;border:1px solid #ffffff20;border-radius:13px;background:#080d1b;color:white;padding:16px;font-size:15px;outline:none}.url:focus{border-color:#8b77ff;box-shadow:0 0 0 3px #7c5cff25}.btn{border:0;border-radius:13px;padding:0 21px;background:linear-gradient(135deg,#8265ff,#5e48df);color:white;font-weight:750;font-size:15px;cursor:pointer;min-height:52px}.btn:hover{filter:brightness(1.1)}.options{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:17px}.quality{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px}select{background:#0b1122;color:#fff;border:1px solid #ffffff20;border-radius:10px;padding:10px 12px;font-size:14px}.hint{font-size:12px;color:#8492b3;line-height:1.7;margin:15px 2px 0}.message{display:none;margin-top:15px;padding:13px 14px;border-radius:12px;background:#29223c;border:1px solid #65509c;color:#e5ddff;font-size:13px;line-height:1.7}.features{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:28px 0}.feature{padding:19px;background:#ffffff07;border:1px solid #ffffff12;border-radius:18px}.ico{font-size:23px}.feature h3{font-size:15px;margin:12px 0 6px}.feature p{font-size:13px;line-height:1.7;color:var(--muted);margin:0}.ad{position:relative;display:flex;justify-content:center;align-items:center;margin:20px auto;max-width:100%;overflow:hidden;min-height:20px}.ad-label{position:absolute;top:0;left:0;font-size:9px;letter-spacing:.08em;color:#73809d;text-transform:uppercase}.ad-top{padding-top:16px;min-height:106px}.ad-box{padding-top:16px;min-height:266px;max-width:320px}.download-btn{display:block;width:100%;margin-top:12px;background:linear-gradient(135deg,#16a987,#087b70)}[hidden]{display:none!important}.foot{text-align:center;color:#7f8ba8;font-size:12px;line-height:1.8;margin-top:28px}.foot a{color:#b8adff}@media(max-width:600px){.ad-top{justify-content:flex-start;overflow-x:auto}.hero{padding-top:38px}.panel{padding:16px;border-radius:19px}.inputrow{flex-direction:column}.btn{width:100%}.features{grid-template-columns:1fr}.options{align-items:flex-start}.quality{width:100%;justify-content:space-between}.wrap{padding-inline:14px}}
+.ad-top iframe{max-width:100%}.ad-box iframe{max-width:100%}
+</style>
+</head>
+<body><main class="wrap">
+<header class="nav"><div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m-5 5 5-5 5 5"/><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg></div><span>Video Downloader</span></header>
+<div class="ad ad-top" aria-label="বিজ্ঞাপন"><span class="ad-label">Advertisement</span><script>atOptions = {
+  'key' : '888e2ec1745318221bc8d37ad9bd70cc',
+  'format' : 'iframe',
+  'height' : 90,
+  'width' : 728,
+  'params' : {}
+};</script><script src="https://bauval.org/22/888e2ec1745318221bc8d37ad9bd70cc"></script></div>
+<section class="hero"><div class="pill"><span class="dot"></span> সহজ · দ্রুত · মোবাইল-ফ্রেন্ডলি</div><h1>আপনার ভিডিও,<br><span class="gradient">আপনার কোয়ালিটি</span></h1><p class="sub">ভিডিওর লিংক পেস্ট করুন এবং আপনার পছন্দের রেজোলিউশন বেছে নিন। পরিষ্কার, সহজ এবং ব্যবহারবান্ধব অভিজ্ঞতা।</p></section>
+<section class="panel" aria-label="ভিডিও ডাউনলোডার">
+<div class="platforms"><span class="platform">▶ YouTube</span><span class="platform">f Facebook</span><span class="platform">◎ Instagram</span><span class="platform">♪ TikTok</span></div>
+<form id="form"><div class="inputrow"><input id="url" class="url" type="url" placeholder="ভিডিও লিংক এখানে পেস্ট করুন…" aria-label="ভিডিও লিংক" required><button class="btn" type="submit">ডাউনলোড প্রস্তুত করুন →</button></div>
+<div class="options"><label class="quality" for="quality">ভিডিও কোয়ালিটি <select id="quality"><option>1080p Full HD</option><option>720p HD</option><option selected>480p</option><option>360p</option><option>240p</option><option>144p</option></select></label><span style="font-size:12px;color:#8f9cbb">ভিডিও + সাউন্ড (উৎসে উপলভ্য হলে)</span></div></form>
+<div id="message" class="message" role="status"></div>
+<button id="downloadBtn" class="btn download-btn" type="button" hidden>ডাউনলোড করুন ↓</button>
+<div class="ad ad-box" aria-label="বিজ্ঞাপন"><span class="ad-label">Advertisement</span><script>atOptions = {
+  'key' : '528f8568f38cb80a1ba85c7bd3797810',
+  'format' : 'iframe',
+  'height' : 250,
+  'width' : 300,
+  'params' : {}
+};</script><script src="https://bauval.org/22/528f8568f38cb80a1ba85c7bd3797810"></script></div>
+<p class="hint">নোট: এই সংস্করণটি ওয়েবসাইটের ফ্রন্টএন্ড ডেমো। প্রকৃত ডাউনলোড চালু করতে নিরাপদ ব্যাকএন্ড ও সমর্থিত উৎসের ইন্টিগ্রেশন লাগবে। উৎসে না থাকা রেজোলিউশন তৈরি করা যায় না।</p>
+</section>
+<section class="features"><article class="feature"><div class="ico">🎬</div><h3>HD কোয়ালিটি</h3><p>1080p, 720p থেকে কম রেজোলিউশন বেছে নেওয়ার ইন্টারফেস।</p></article><article class="feature"><div class="ico">🔊</div><h3>ভিডিও ও অডিও</h3><p>সমর্থিত উৎসে ভিডিওর সঙ্গে সাউন্ড রাখার জন্য প্রস্তুত ডিজাইন।</p></article><article class="feature"><div class="ico">📱</div><h3>সব স্ক্রিনে সুন্দর</h3><p>অ্যান্ড্রয়েড, আইফোন, ট্যাবলেট ও কম্পিউটারের উপযোগী।</p></article></section>
+<footer class="foot">নিজের বা ডাউনলোডের অনুমতি থাকা ভিডিও ব্যবহার করুন।<br>প্ল্যাটফর্মের শর্তাবলি ও কপিরাইট মেনে চলুন।</footer>
+</main>
+<script>
+const form=document.getElementById('form'), urlInput=document.getElementById('url'), msg=document.getElementById('message'), downloadBtn=document.getElementById('downloadBtn');
+const adLink='https://asiafilm.org/4/71f92f1c17a327e98497060f4c8897d9';
+let validVideoUrl='', adOpened=false;
+function showMessage(text){msg.style.display='block';msg.textContent=text;}
+form.addEventListener('submit',e=>{e.preventDefault();let u;try{u=new URL(urlInput.value.trim())}catch{downloadBtn.hidden=true;showMessage('সঠিক ভিডিও লিংক দিন।');return}
+const host=u.hostname.toLowerCase().replace(/^www\./,'');
+const known=['youtube.com','youtu.be','m.youtube.com','facebook.com','fb.watch','instagram.com','tiktok.com'];
+if(!known.some(d=>host===d||host.endsWith('.'+d))){downloadBtn.hidden=true;showMessage('এই লিংকটি পরিচিত প্ল্যাটফর্মের নয়। YouTube, Facebook, Instagram বা TikTok-এর লিংক দিন।');return}
+validVideoUrl=u.href;adOpened=false;downloadBtn.hidden=false;showMessage('লিংকটি যাচাই করা হয়েছে। প্রথমবার “ডাউনলোড করুন” চাপলে বিজ্ঞাপন খুলবে। তবে এই সাইটের ডাউনলোড ব্যাকএন্ড এখনো যুক্ত করা হয়নি।');
+});
+downloadBtn.addEventListener('click',()=>{
+ if(!validVideoUrl){showMessage('আগে ভিডিও লিংক দিন এবং “ডাউনলোড প্রস্তুত করুন” চাপুন।');return;}
+ if(!adOpened){adOpened=true;window.open(adLink,'_blank','noopener,noreferrer');showMessage('বিজ্ঞাপনের লিংক নতুন ট্যাবে খোলার চেষ্টা করা হয়েছে। এখন আবার “ডাউনলোড করুন” চাপলে ডাউনলোড সার্ভার দরকার হবে—এখনো সেটি যুক্ত নেই।');return;}
+ showMessage('ভিডিও ডাউনলোড এখনো চালু নয়, কারণ ব্যাকএন্ড সার্ভার যুক্ত করা হয়নি। এই পেজে শুধু বিজ্ঞাপন ও ফ্রন্টএন্ড প্রস্তুত আছে।');
+});
+</script>
+<!-- Adsterra Social Bar -->
+<script data-cfasync="false" src="https://bauval.org/14/3fc59fbaa5f2b933b155515f16fd8d42"></script>
+</body></html>

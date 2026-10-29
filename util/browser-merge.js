@@ -37,9 +37,12 @@ async function runBrowserMerge() {
     setStage("Downloading audio");
     const audioData = await fetchFile(PROXY + encodeURIComponent(audio.url));
     setStage("Combining");
+    setStage("Combining " + videoData.length + "/" + audioData.length);
     await ff.writeFile("v.mp4", videoData);
     await ff.writeFile("a.m4a", audioData);
+    setStage("Running ffmpeg");
     await ff.exec(["-i", "v.mp4", "-i", "a.m4a", "-c", "copy", "-shortest", "out.mp4"]);
+    setStage("Reading output");
     const outData = await ff.readFile("out.mp4");
     const blob = new Blob([outData.buffer], { type: "video/mp4" });
     if (browserState.blobUrl) URL.revokeObjectURL(browserState.blobUrl);

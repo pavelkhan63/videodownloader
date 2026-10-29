@@ -56,7 +56,7 @@ validVideoUrl=u.href;adOpened=false;downloadBtn.hidden=false;showMessage('লি
 downloadBtn.addEventListener('click',()=>{
  if(!validVideoUrl){showMessage('আগে ভিডিও লিংক দিন এবং “ডাউনলোড প্রস্তুত করুন” চাপুন।');return;}
  if(!adOpened){adOpened=true;window.open(adLink,'_blank','noopener,noreferrer');showMessage('বিজ্ঞাপনের লিংক নতুন ট্যাবে খোলার চেষ্টা করা হয়েছে। এখন আবার “ডাউনলোড করুন” চাপলে ডাউনলোড সার্ভার দরকার হবে—এখনো সেটি যুক্ত নেই।');return;}
- showMessage('ভিডিও ডাউনলোড এখনো চালু নয়, কারণ ব্যাকএন্ড সার্ভার যুক্ত করা হয়নি। এই পেজে শুধু বিজ্ঞাপন ও ফ্রন্টএন্ড প্রস্তুত আছে।');
+ showMessage('ব্যাকএন্ডের ডাউনলোড API এখনো প্রস্তুত নয়');
 });
 </script>
 <!-- Adsterra Social Bar -->

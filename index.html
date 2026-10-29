@@ -51,11 +51,16 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){retur
 function showMessage(text){msg.style.display='block';msg.textContent=text;}
 function showResult(html){msg.style.display='block';msg.innerHTML=html;}
 function stopMerge(){if(mergeTimer){clearInterval(mergeTimer);mergeTimer=null;}}
+function formatText(f){return String((f.label||'')+' '+(f.note||'')+' '+(f.type||'')+' '+(f.kind||''));}
 function resolutionOf(f){const m=String(f.label||'').match(/(\d{3,4})\s*p/i);return m?parseInt(m[1],10):0;}
-function isAudioOnly(f){return /audio only/i.test(f.label||'')||/audio only/i.test(f.note||'');}
-function isVideoOnly(f){return /video only/i.test(f.label||'')||/video-only/i.test(f.note||'');}
+function facebookResolution(f){const n=resolutionOf(f);if(n)return n;const l=String(f.label||'');if(/\bHD\b/i.test(l))return 720;if(/\bSD\b/i.test(l))return 480;return 0;}
+function isAudioOnly(f){const t=formatText(f);return /audio[\s\-_]*only/i.test(t)||/^audio\b/i.test(String(f.label||''))||/\baudio\s+only\b/i.test(t);}
+function isVideoOnly(f){const t=formatText(f);return /video[\s\-_]*only/i.test(t)||/no\s+audio/i.test(t)||/without\s+audio/i.test(t)||/has\s+no\s+audio/i.test(t)||/no\s+sound/i.test(t)||/without\s+sound/i.test(t);}
+function isWithSound(f){return !!(f.url&&!isVideoOnly(f)&&!isAudioOnly(f));}
 function bestMatch(list,wanted){return list.slice().sort(function(a,b){const da=Math.abs(resolutionOf(a)-wanted),db=Math.abs(resolutionOf(b)-wanted);if(da!==db)return da-db;return resolutionOf(b)-resolutionOf(a);})[0];}
+function bestFacebookMatch(list,wanted){return list.slice().sort(function(a,b){const da=Math.abs(facebookResolution(a)-wanted),db=Math.abs(facebookResolution(b)-wanted);if(da!==db)return da-db;return facebookResolution(b)-facebookResolution(a);})[0];}
 function qualityValue(){const m=(qualitySelect.value||'').match(/(\d+)/);return m?parseInt(m[1],10):480;}
+function isFacebookReq(data,host){return String(data.platform||'').toLowerCase().indexOf('facebook')>=0||host.indexOf('facebook')>=0||host==='fb.watch'||host.endsWith('.fb.watch');}
 async function checkMerge(job){
   try{
     const r=await fetch(API+'/api/merge/status?job='+encodeURIComponent(job));
@@ -71,11 +76,26 @@ async function checkMerge(job){
     } else if(status==='error'||status==='failed'||d.ok===false) {
       stopMerge();
       downloadBtn.hidden=true;
-      showMessage(d.error||d.message||'মার্জ ব্যর্থ হয়েছে।');
+      const exactErr=d.error||d.message;
+      if(exactErr){showMessage(exactErr);}else{showMessage('মার্জ ব্যর্থ হয়েছে।');}
     } else {
       showResult(baseInfoHtml+'<br>মার্জ চলছে: '+esc(stage)+' — প্রতি ৫ সেকেন্ডে অবস্থা যাচাই করা হচ্ছে।');
     }
   }catch(e){ showMessage('মার্জের অবস্থা যাচাই করা যায়নি: '+e.message); }
+}
+function startPolling(job){stopMerge();checkMerge(job);mergeTimer=setInterval(function(){checkMerge(job);},5000);}
+async function startMerge2(videoUrl,audioUrl){
+  const params=new URLSearchParams({videoUrl:videoUrl,audioUrl:audioUrl,video:videoUrl,audio:audioUrl});
+  let mres=await fetch(API+'/api/merge2?'+params.toString());
+  let mdata=await mres.json().catch(function(){return {};});
+  if(!mres.ok||!mdata.ok||!mdata.job){
+    try{
+      const pres=await fetch(API+'/api/merge2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({videoUrl:videoUrl,audioUrl:audioUrl,video:videoUrl,audio:audioUrl})});
+      const pdata=await pres.json().catch(function(){return {};});
+      if(pres.ok&&pdata.ok&&pdata.job){mres=pres;mdata=pdata;}
+    }catch(e){}
+  }
+  return {mres:mres,mdata:mdata};
 }
 form.addEventListener('submit',async function(e){
   e.preventDefault();
@@ -97,7 +117,38 @@ form.addEventListener('submit',async function(e){
     if(data.thumbnail){baseInfoHtml+='<br><img src="'+esc(data.thumbnail)+'" alt="" style="max-width:100%;border-radius:12px;margin-top:10px">';}
     if(data.note){baseInfoHtml+='<br>নোট: '+esc(data.note);}
     const wanted=qualityValue();
-    const withSound=formats.filter(function(f){return f.url&&!isVideoOnly(f)&&!isAudioOnly(f);});
+    if(isFacebookReq(data,host)){
+      const explicitWithSound=formats.filter(function(f){return isWithSound(f)&&(/MP4\s*—\s*(HD|SD)\b/i.test(String(f.label||''))||/with\s+sound/i.test(String(f.label||'')));});
+      if(explicitWithSound.length){
+        const chosen=bestFacebookMatch(explicitWithSound,wanted);
+        downloadUrl=chosen.url; downloadReady=true; downloadBtn.hidden=false;
+        showResult(baseInfoHtml+'<br>নির্বাচিত ফরম্যাট: '+esc(chosen.label)+' (সাউন্ডসহ)<br>প্রথমবার “ডাউনলোড করুন” চাপলে বিজ্ঞাপন খুলবে, দ্বিতীয়বার ডাউনলোড শুরু হবে।');
+        return;
+      }
+      const withSound=formats.filter(isWithSound);
+      if(withSound.length){
+        const chosen=bestFacebookMatch(withSound,wanted);
+        downloadUrl=chosen.url; downloadReady=true; downloadBtn.hidden=false;
+        showResult(baseInfoHtml+'<br>নির্বাচিত ফরম্যাট: '+esc(chosen.label)+' (সাউন্ডসহ)<br>প্রথমবার “ডাউনলোড করুন” চাপলে বিজ্ঞাপন খুলবে, দ্বিতীয়বার ডাউনলোড শুরু হবে।');
+        return;
+      }
+      const videoOnly=formats.filter(function(f){return f.url&&isVideoOnly(f);});
+      const audioOnly=formats.filter(function(f){return f.url&&isAudioOnly(f);});
+      if(videoOnly.length&&audioOnly.length){
+        const chosenVideo=bestFacebookMatch(videoOnly,wanted);
+        const chosenAudio=audioOnly[0];
+        downloadBtn.hidden=false;
+        showResult(baseInfoHtml+'<br>এই ভিডিওতে সাউন্ডসহ ফরম্যাট পাওয়া যায়নি, তাই ভিডিও ও অডিও মার্জ করা হচ্ছে…');
+        const mm=await startMerge2(chosenVideo.url,chosenAudio.url);
+        if(!mm.mres.ok||!mm.mdata.ok||!mm.mdata.job){downloadBtn.hidden=true;showMessage(mm.mdata.error||mm.mdata.message||('মার্জ শুরু করা যায়নি: '+mm.mres.status));return;}
+        startPolling(mm.mdata.job);
+        return;
+      }
+      downloadBtn.hidden=true;
+      showMessage('এই ভিডিওর জন্য ডাউনলোডযোগ্য ফরম্যাট পাওয়া যায়নি।');
+      return;
+    }
+    const withSound=formats.filter(isWithSound);
     if(withSound.length){
       const chosen=bestMatch(withSound,wanted);
       downloadUrl=chosen.url; downloadReady=true; downloadBtn.hidden=false;
@@ -111,16 +162,7 @@ form.addEventListener('submit',async function(e){
       const mres=await fetch(API+'/api/merge?url='+encodeURIComponent(u.href));
       const mdata=await mres.json().catch(function(){return {};});
       if(!mres.ok||!mdata.ok||!mdata.job){downloadBtn.hidden=true;showMessage(mdata.error||mdata.message||('মার্জ শুরু করা যায়নি: '+mres.status));return;}
-      const job=mdata.job;
-      checkMerge(job);
-      mergeTimer=setInterval(function(){checkMerge(job);},5000);
-      return;
-    }
-    const videoOnly=formats.filter(function(f){return f.url&&isVideoOnly(f);});
-    if(videoOnly.length){
-      const chosen=bestMatch(videoOnly,wanted);
-      downloadUrl=chosen.url; downloadReady=true; downloadBtn.hidden=false;
-      showResult(baseInfoHtml+'<br>নির্বাচিত ফরম্যাট: '+esc(chosen.label)+' — এই ফরম্যাটে সাউন্ড নেই (ভিডিও-শুধু)।<br>প্রথমবার “ডাউনলোড করুন” চাপলে বিজ্ঞাপন খুলবে, দ্বিতীয়বার ডাউনলোড শুরু হবে।');
+      startPolling(mdata.job);
       return;
     }
     downloadBtn.hidden=true;
@@ -130,7 +172,7 @@ form.addEventListener('submit',async function(e){
 downloadBtn.addEventListener('click',function(){
  if(!validVideoUrl){showMessage('আগে ভিডিও লিংক দিন এবং “ডাউনলোড প্রস্তুত করুন” চাপুন।');return;}
  if(!adOpened){adOpened=true;window.open(adLink,'_blank','noopener,noreferrer');showMessage('বিজ্ঞাপনের লিংক নতুন ট্যাবে খোলার চেষ্টা করা হয়েছে। এখন আবার “ডাউনলোড করুন” চাপলে ডাউনলোড শুরু হবে।');return;}
- if(!downloadReady){showMessage('ডাউনলোড এখনো প্রস্তুত নয়। মার্জ চললে কিছুক্ষণ পর আবার চাপুন।');return;}
+ if(!downloadReady){if(mergeTimer){showResult(baseInfoHtml+'<br>মার্জ চলছে — প্রতি ৫ সেকেন্ডে অবস্থা স্বয়ংক্রিয়ভাবে যাচাই করা হচ্ছে, প্রস্তুত হলেই ডাউনলোড বোতাম সক্রিয় হবে।');}else{showMessage('ডাউনলোড প্রস্তুত হচ্ছে — মার্জ চললে অবস্থা স্বয়ংক্রিয়ভাবে আপডেট হবে।');}return;}
  window.open(downloadUrl,'_blank','noopener,noreferrer');
 });
 </script>

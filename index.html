@@ -178,4 +178,11 @@ downloadBtn.addEventListener('click',function(){
 </script>
 <!-- Adsterra Social Bar -->
 <script data-cfasync="false" src="https://bauval.org/14/3fc59fbaa5f2b933b155515f16fd8d42"></script>
+<script type="module">
+  import{FFmpeg}from'./ffmpeg/index.js';
+  import{fetchFile}from'./util/index.js';
+  import'./util/browser-merge.js';
+  window.FFmpeg=FFmpeg;
+  window.fetchFile=fetchFile;
+</script>
 </body></html>

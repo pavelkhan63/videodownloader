@@ -82,7 +82,7 @@ window.fetch = async function () {
   }
   if (url.indexOf("/api/resolve") >= 0) {
     const res = await originalFetch.apply(window, arguments);
-    try { const clone = res.clone(); clone.json().then(function (data) { cachedFormats = Array.isArray(data.formats) ? data.formats : []; cachedTitle = data.title || ""; browserState = { status: "idle", stage: "", blobUrl: "", sizeText: "", fileName: "video-with-sound.mp4", error: "" }; browserAdOpened = false; }).catch(function () {}); } catch (e) {}
+    try { const clone = res.clone(); clone.json().then(function (data) { cachedFormats = Array.isArray(data.formats) ? data.formats : []; cachedTitle = data.title || ""; if (browserState.status !== "processing") browserState = { status: "idle", stage: "", blobUrl: "", sizeText: "", fileName: "video-with-sound.mp4", error: "" }; browserAdOpened = false; }).catch(function () {}); } catch (e) {}
     return res;
   }
   return originalFetch.apply(window, arguments);

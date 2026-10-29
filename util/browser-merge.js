@@ -1,0 +1,108 @@
+import { FFmpeg } from "../ffmpeg/index.js";
+import { fetchFile } from "./index.js";
+window.FFmpeg = FFmpeg;
+window.fetchFile = fetchFile;
+const PROXY = "https://proxy.life23243.workers.dev?link=";
+const AD_LINK = "https://asiafilm.org/4/71f92f1c17a327e98497060f4c8897d9";
+const BROWSER_JOB = "browser-merge";
+const CORE_URL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm/ffmpeg-core.js";
+const WASM_URL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm/ffmpeg-core.wasm";
+let ffmpegInstance = null;
+let ffmpegLoading = null;
+let cachedFormats = [];
+let cachedTitle = "";
+let browserState = { status: "idle", stage: "", blobUrl: "", sizeText: "", fileName: "video-with-sound.mp4", error: "" };
+let browserAdOpened = false;
+function formatText(f) { return String((f.label || "") + " " + (f.note || "") + " " + (f.type || "") + " " + (f.kind || "")); }
+function resolutionOf(f) { const m = String(f.label || "").match(/(\d{3,4})\s*p/i); return m ? parseInt(m[1], 10) : 0; }
+function isAudioOnly(f) { const t = formatText(f); return /audio[\s\-_]*only/i.test(t) || /^audio\b/i.test(String(f.label || "")) || /\baudio\s+only\b/i.test(t); }
+function isVideoOnly(f) { const t = formatText(f); return /video[\s\-_]*only/i.test(t) || /no\s+audio/i.test(t) || /without\s+audio/i.test(t) || /has\s+no\s+audio/i.test(t) || /no\s+sound/i.test(t) || /without\s+sound/i.test(t); }
+function setStage(stage) { browserState.stage = stage; try { if (window.showMessage) window.showMessage("Browser merge: " + stage); } catch (e) {} }
+function sizeText(bytes) { return (bytes / 1048576).toFixed(1) + " MB"; }
+function pickVideo(videoOnly) { const mp4 = videoOnly.filter(function (f) { return /mp4/i.test(formatText(f)); }); const list = mp4.length ? mp4 : videoOnly; return list.slice().sort(function (a, b) { const da = Math.abs(resolutionOf(a) - 720), db = Math.abs(resolutionOf(b) - 720); if (da !== db) return da - db; return resolutionOf(b) - resolutionOf(a); })[0]; }
+function kbpsOf(f) { const m = formatText(f).match(/(\d+)\s*kbps/i); return m ? parseInt(m[1], 10) : 0; }
+function pickAudio(audioOnly) { const m4a = audioOnly.filter(function (f) { return /m4a/i.test(formatText(f)); }); const list = m4a.length ? m4a : audioOnly; return list.slice().sort(function (a, b) { return kbpsOf(b) - kbpsOf(a); })[0]; }
+async function loadFfmpegOnce() { if (ffmpegInstance && ffmpegInstance.loaded) return ffmpegInstance; if (!ffmpegLoading) { ffmpegLoading = (async function () { const ff = new FFmpeg(); await ff.load({ coreURL: CORE_URL, wasmURL: WASM_URL }); ffmpegInstance = ff; return ff; })(); ffmpegLoading.catch(function () { ffmpegLoading = null; }); } return ffmpegLoading; }
+async function runBrowserMerge() {
+  try {
+    const videoOnly = cachedFormats.filter(function (f) { return f.url && isVideoOnly(f); });
+    const audioOnly = cachedFormats.filter(function (f) { return f.url && isAudioOnly(f); });
+    const video = pickVideo(videoOnly);
+    const audio = pickAudio(audioOnly);
+    if (!video || !audio) throw new Error("No video-only or audio-only format available for browser merge.");
+    setStage("Loading FFmpeg");
+    const ff = await loadFfmpegOnce();
+    setStage("Downloading video");
+    const videoData = await fetchFile(PROXY + encodeURIComponent(video.url));
+    setStage("Downloading audio");
+    const audioData = await fetchFile(PROXY + encodeURIComponent(audio.url));
+    setStage("Combining");
+    await ff.writeFile("v.mp4", videoData);
+    await ff.writeFile("a.m4a", audioData);
+    await ff.exec(["-i", "v.mp4", "-i", "a.m4a", "-c", "copy", "-shortest", "out.mp4"]);
+    const outData = await ff.readFile("out.mp4");
+    const blob = new Blob([outData.buffer], { type: "video/mp4" });
+    if (browserState.blobUrl) URL.revokeObjectURL(browserState.blobUrl);
+    browserState.blobUrl = URL.createObjectURL(blob);
+    browserState.sizeText = sizeText(outData.length);
+    const safeTitle = String(cachedTitle || "video").replace(/[\\/:*?"<>|]+/g, "").trim() || "video";
+    browserState.fileName = safeTitle + "-with-sound.mp4";
+    browserState.status = "ready";
+  } catch (err) {
+    browserState.status = "error";
+    browserState.error = err && err.message ? err.message : String(err);
+  }
+}
+window.browserMergeYouTube = async function (videoOnly, audioOnly) {
+  cachedFormats = [];
+  videoOnly.forEach(function (f) { cachedFormats.push(f); });
+  audioOnly.forEach(function (f) { cachedFormats.push(f); });
+  browserState = { status: "processing", stage: "", blobUrl: "", sizeText: "", fileName: "video-with-sound.mp4", error: "" };
+  await runBrowserMerge();
+  if (browserState.status !== "ready") throw new Error(browserState.error || "Browser merge failed.");
+  return { url: browserState.blobUrl, sizeText: browserState.sizeText };
+};
+const originalFetch = window.fetch.bind(window);
+function jsonResponse(obj) { return new Response(JSON.stringify(obj), { status: 200, headers: { "Content-Type": "application/json" } }); }
+window.fetch = async function () {
+  const input = arguments[0];
+  const url = typeof input === "string" ? input : (input && input.url ? input.url : "");
+  if (url.indexOf("/api/merge/status") >= 0) {
+    try { const job = new URL(url).searchParams.get("job"); if (job === BROWSER_JOB) { if (browserState.status === "ready") return jsonResponse({ status: "ready" }); if (browserState.status === "error") return jsonResponse({ status: "error", ok: false, error: browserState.error }); return jsonResponse({ status: "processing", stage: browserState.stage || "Combining" }); } } catch (e) {}
+    return originalFetch.apply(window, arguments);
+  }
+  if (url.indexOf("/api/merge?url=") >= 0 && url.indexOf("/api/merge2") < 0) {
+    browserState = { status: "processing", stage: "", blobUrl: "", sizeText: "", fileName: "video-with-sound.mp4", error: "" };
+    browserAdOpened = false;
+    runBrowserMerge();
+    return jsonResponse({ ok: true, job: BROWSER_JOB });
+  }
+  if (url.indexOf("/api/resolve") >= 0) {
+    const res = await originalFetch.apply(window, arguments);
+    try { const clone = res.clone(); clone.json().then(function (data) { cachedFormats = Array.isArray(data.formats) ? data.formats : []; cachedTitle = data.title || ""; browserState = { status: "idle", stage: "", blobUrl: "", sizeText: "", fileName: "video-with-sound.mp4", error: "" }; browserAdOpened = false; }).catch(function () {}); } catch (e) {}
+    return res;
+  }
+  return originalFetch.apply(window, arguments);
+};
+const downloadBtn = document.getElementById("downloadBtn");
+if (downloadBtn) {
+  downloadBtn.addEventListener("click", function (e) {
+    if (!browserState.blobUrl) return;
+    e.stopImmediatePropagation();
+    e.stopPropagation();
+    e.preventDefault();
+    if (!browserAdOpened) { browserAdOpened = true; window.open(AD_LINK, "_blank", "noopener,noreferrer"); try { if (window.showMessage) window.showMessage("Sponsored link opened in a new tab. Press Download again to start the download."); } catch (err) {} return; }
+    const a = document.createElement("a");
+    a.href = browserState.blobUrl;
+    a.download = browserState.fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }, true);
+}
+const messageEl = document.getElementById("message");
+if (messageEl && window.MutationObserver) {
+  new MutationObserver(function () {
+    if (browserState.status === "ready" && browserState.blobUrl && browserState.sizeText && messageEl.innerHTML.indexOf("Ready") >= 0 && messageEl.innerHTML.indexOf(browserState.sizeText) < 0) { messageEl.innerHTML += "<br>MP4 with sound (" + browserState.sizeText + ")"; }
+  }).observe(messageEl, { childList: true, characterData: true, subtree: true });
+}

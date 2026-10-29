@@ -71,7 +71,7 @@ window.fetch = async function () {
   const input = arguments[0];
   const url = typeof input === "string" ? input : (input && input.url ? input.url : "");
   if (url.indexOf("/api/merge/status") >= 0) {
-    try { const job = new URL(url).searchParams.get("job"); if (job === BROWSER_JOB) { if (browserState.status === "ready") return jsonResponse({ status: "ready" }); if (browserState.status === "error") return jsonResponse({ status: "error", ok: false, error: browserState.error }); return jsonResponse({ status: "processing", stage: browserState.stage || "BROWSER-v3" }); } } catch (e) {}
+    try { const job = new URL(url).searchParams.get("job"); if (job === BROWSER_JOB) { if (browserState.status === "ready") return jsonResponse({ status: "ready" }); if (browserState.status === "error") return jsonResponse({ status: "error", ok: false, error: browserState.error }); return jsonResponse({ status: "processing", stage: browserState.stage || "Combining" }); } } catch (e) {}
     return originalFetch.apply(window, arguments);
   }
   if (url.indexOf("/api/merge?url=") >= 0 && url.indexOf("/api/merge2") < 0) {
@@ -82,7 +82,7 @@ window.fetch = async function () {
   }
   if (url.indexOf("/api/resolve") >= 0) {
     const res = await originalFetch.apply(window, arguments);
-    try { const clone = res.clone(); clone.json().then(function (data) { cachedFormats = Array.isArray(data.formats) ? data.formats : []; cachedTitle = data.title || ""; if (browserState.status !== "processing") browserState = { status: "idle", stage: "", blobUrl: "", sizeText: "", fileName: "video-with-sound.mp4", error: "" }; browserAdOpened = false; }).catch(function () {}); } catch (e) {}
+    try { const data = await res.clone().json(); cachedFormats = Array.isArray(data.formats) ? data.formats : []; cachedTitle = data.title || ""; if (browserState.status !== "processing") browserState = { status: "idle", stage: "", blobUrl: "", sizeText: "", fileName: "video-with-sound.mp4", error: "" }; browserAdOpened = false; } catch (e) {}
     return res;
   }
   return originalFetch.apply(window, arguments);

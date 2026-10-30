@@ -13,6 +13,7 @@ let cachedFormats = [];
 let cachedTitle = "";
 let browserState = { status: "idle", stage: "", blobUrl: "", sizeText: "", fileName: "video-with-sound.mp4", error: "" };
 let browserAdOpened = false;
+let mergeRunId = 0;
 function formatText(f) { return String((f.label || "") + " " + (f.note || "") + " " + (f.type || "") + " " + (f.kind || "")); }
 function resolutionOf(f) { const m = String(f.label || "").match(/(\d{3,4})\s*p/i); return m ? parseInt(m[1], 10) : 0; }
 function isAudioOnly(f) { const t = formatText(f); return /audio[\s\-_]*only/i.test(t) || /^audio\b/i.test(String(f.label || "")) || /\baudio\s+only\b/i.test(t); }
@@ -24,7 +25,7 @@ function pickVideo(videoOnly) { const mp4 = videoOnly.filter(function (f) { retu
 function kbpsOf(f) { const m = formatText(f).match(/(\d+)\s*kbps/i); return m ? parseInt(m[1], 10) : 0; }
 function pickAudio(audioOnly) { const m4a = audioOnly.filter(function (f) { return /m4a/i.test(formatText(f)); }); const list = m4a.length ? m4a : audioOnly; return list.slice().sort(function (a, b) { return kbpsOf(b) - kbpsOf(a); })[0]; }
 async function loadFfmpegOnce() { if (ffmpegInstance && ffmpegInstance.loaded) return ffmpegInstance; if (!ffmpegLoading) { ffmpegLoading = (async function () { const ff = new FFmpeg(); await ff.load({ coreURL: CORE_URL, wasmURL: WASM_URL }); ffmpegInstance = ff; return ff; })(); ffmpegLoading.catch(function () { ffmpegLoading = null; }); } return ffmpegLoading; }
-async function runBrowserMerge() {
+async function runBrowserMerge(runId) {
   try {
     const videoOnly = cachedFormats.filter(function (f) { return f.url && isVideoOnly(f); });
     const audioOnly = cachedFormats.filter(function (f) { return f.url && isAudioOnly(f); });
@@ -34,35 +35,53 @@ async function runBrowserMerge() {
     setStage("ভিডিও ডাউনলোডিং…");
     const ff = await loadFfmpegOnce();
     setStage("ভিডিও ডাউনলোডিং…");
+    try { await ff.deleteFile("out.mp4"); } catch (e) {}
+    try { await ff.deleteFile("v.mp4"); } catch (e) {}
+    try { await ff.deleteFile("a.m4a"); } catch (e) {}
     const videoData = await fetchFile(PROXY + encodeURIComponent(video.url));
+    if (!videoData || !videoData.length) throw new Error("Downloaded video data is empty.");
     setStage("ভিডিও ডাউনলোডিং…");
     const audioData = await fetchFile(PROXY + encodeURIComponent(audio.url));
-    setStage("ভিডিও ডাউনলোডিং…");
+    if (!audioData || !audioData.length) throw new Error("Downloaded audio data is empty.");
     setStage("ভিডিও ডাউনলোডিং…");
     await ff.writeFile("v.mp4", videoData);
     await ff.writeFile("a.m4a", audioData);
     setStage("ভিডিও ডাউনলোডিং…");
-    await ff.exec(["-i", "v.mp4", "-i", "a.m4a", "-c", "copy", "-shortest", "out.mp4"]);
-    setStage("ভিডিও ডাউনলোডিং…");
-    const outData = await ff.readFile("out.mp4");
-    const blob = new Blob([outData.buffer], { type: "video/mp4" });
-    if (browserState.blobUrl) URL.revokeObjectURL(browserState.blobUrl);
-    browserState.blobUrl = URL.createObjectURL(blob);
-    browserState.sizeText = sizeText(outData.length);
-    const safeTitle = String(cachedTitle || "video").replace(/[\\/:*?"<>|]+/g, "").trim() || "video";
-    browserState.fileName = safeTitle + "-with-sound.mp4";
-    browserState.status = "ready";
+    // Direct merge, like the proven direct merge: await exec, then readFile,
+    // then Blob from the returned bytes themselves (never out.buffer, whose
+    // underlying WASM buffer can be far larger than the output, or detached).
+    // This block is wrapped so a failure is shown exactly, never left silent.
+    try {
+      const code = await ff.exec(["-i", "v.mp4", "-i", "a.m4a", "-c", "copy", "-shortest", "out.mp4"]);
+      if (typeof code === "number" && code !== 0) throw new Error("ffmpeg exec failed with exit code " + code);
+      const out = await ff.readFile("out.mp4");
+      if (!out || !out.length) throw new Error("ffmpeg produced an empty out.mp4.");
+      const blob = new Blob([out], { type: "video/mp4" });
+      if (runId !== undefined && runId !== mergeRunId) return;
+      if (browserState.blobUrl) URL.revokeObjectURL(browserState.blobUrl);
+      browserState.blobUrl = URL.createObjectURL(blob);
+      browserState.sizeText = sizeText(out.length);
+      const safeTitle = String(cachedTitle || "video").replace(/[\\/:*?"<>|]+/g, "").trim() || "video";
+      browserState.fileName = safeTitle + "-with-sound.mp4";
+      browserState.status = "ready";
+    } catch (mergeErr) {
+      throw mergeErr;
+    }
   } catch (err) {
+    if (runId !== undefined && runId !== mergeRunId) return;
     browserState.status = "error";
     browserState.error = err && err.message ? err.message : String(err);
+    try { const el = document.getElementById("message"); if (el) { el.style.display = "block"; el.textContent = browserState.error; } } catch (e) {}
   }
 }
 window.browserMergeYouTube = async function (videoOnly, audioOnly) {
   cachedFormats = [];
   videoOnly.forEach(function (f) { cachedFormats.push(f); });
   audioOnly.forEach(function (f) { cachedFormats.push(f); });
+  mergeRunId++;
+  const myRun = mergeRunId;
   browserState = { status: "processing", stage: "", blobUrl: "", sizeText: "", fileName: "video-with-sound.mp4", error: "" };
-  await runBrowserMerge();
+  await runBrowserMerge(myRun);
   if (browserState.status !== "ready") throw new Error(browserState.error || "Browser merge failed.");
   return { url: browserState.blobUrl, sizeText: browserState.sizeText };
 };
@@ -72,18 +91,30 @@ window.fetch = async function () {
   const input = arguments[0];
   const url = typeof input === "string" ? input : (input && input.url ? input.url : "");
   if (url.indexOf("/api/merge/status") >= 0) {
-    try { const job = new URL(url).searchParams.get("job"); if (job === BROWSER_JOB) { if (browserState.status === "ready") return jsonResponse({ status: "ready" }); if (browserState.status === "error") return jsonResponse({ status: "error", error: browserState.error }); } } catch (e) {}
+    try {
+      const job = new URL(url).searchParams.get("job");
+      if (job === BROWSER_JOB) {
+        if (browserState.status === "ready") return jsonResponse({ status: "ready", sizeText: browserState.sizeText, fileName: browserState.fileName });
+        if (browserState.status === "error") return jsonResponse({ status: "error", error: browserState.error });
+        return jsonResponse({ status: "processing" });
+      }
+    } catch (e) {}
     return originalFetch.apply(window, arguments);
   }
   if (url.indexOf("/api/merge?url=") >= 0 && url.indexOf("/api/merge2") < 0) {
+    if (browserState.status === "processing") return jsonResponse({ ok: true, job: BROWSER_JOB });
+    mergeRunId++;
     browserState = { status: "processing", stage: "", blobUrl: "", sizeText: "", fileName: "video-with-sound.mp4", error: "" };
     browserAdOpened = false;
-    runBrowserMerge();
+    runBrowserMerge(mergeRunId);
     return jsonResponse({ ok: true, job: BROWSER_JOB });
   }
   if (url.indexOf("/api/resolve") >= 0) {
     const res = await originalFetch.apply(window, arguments);
-    try { const data = await res.clone().json(); cachedFormats = Array.isArray(data.formats) ? data.formats : []; cachedTitle = data.title || ""; if (browserState.status !== "processing") browserState = { status: "idle", stage: "", blobUrl: "", sizeText: "", fileName: "video-with-sound.mp4", error: "" }; } catch (e) {}
+    try {
+      const data = await res.clone().json();
+      if (browserState.status !== "processing") { cachedFormats = Array.isArray(data.formats) ? data.formats : []; cachedTitle = data.title || ""; browserState = { status: "idle", stage: "", blobUrl: "", sizeText: "", fileName: "video-with-sound.mp4", error: "" }; }
+    } catch (e) {}
     return res;
   }
   return originalFetch.apply(window, arguments);

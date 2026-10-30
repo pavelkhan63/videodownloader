@@ -17,7 +17,7 @@ function formatText(f) { return String((f.label || "") + " " + (f.note || "") + 
 function resolutionOf(f) { const m = String(f.label || "").match(/(\d{3,4})\s*p/i); return m ? parseInt(m[1], 10) : 0; }
 function isAudioOnly(f) { const t = formatText(f); return /audio[\s\-_]*only/i.test(t) || /^audio\b/i.test(String(f.label || "")) || /\baudio\s+only\b/i.test(t); }
 function isVideoOnly(f) { const t = formatText(f); return /video[\s\-_]*only/i.test(t) || /no\s+audio/i.test(t) || /without\s+audio/i.test(t) || /has\s+no\s+audio/i.test(t) || /no\s+sound/i.test(t) || /without\s+sound/i.test(t); }
-function setStage(stage) { browserState.stage = stage; try { if (window.showMessage) window.showMessage("Browser merge: " + stage); } catch (e) {} }
+function setStage(stage) { browserState.stage = stage; try { if (window.showMessage) window.showMessage("ভিডিও ডাউনলোডিং…"); } catch (e) {} }
 function sizeText(bytes) { return (bytes / 1048576).toFixed(1) + " MB"; }
 // Browser merge is fixed at 480p: never pick a video-only format above 480p. If 480p is not available, pick the closest lower resolution (360p, then 240p).
 function pickVideo(videoOnly) { const mp4 = videoOnly.filter(function (f) { return /mp4/i.test(formatText(f)); }); const list = mp4.length ? mp4 : videoOnly; const atOrBelow = list.filter(function (f) { const r = resolutionOf(f); return r > 0 && r <= 480; }); if (atOrBelow.length) return atOrBelow.slice().sort(function (a, b) { return resolutionOf(b) - resolutionOf(a); })[0]; return list.slice().sort(function (a, b) { const ra = resolutionOf(a) || 99999, rb = resolutionOf(b) || 99999; return ra - rb; })[0]; }
@@ -31,19 +31,19 @@ async function runBrowserMerge() {
     const video = pickVideo(videoOnly);
     const audio = pickAudio(audioOnly);
     if (!video || !audio) throw new Error("No video-only or audio-only format available for browser merge.");
-    setStage("Loading FFmpeg");
+    setStage("ভিডিও ডাউনলোডিং…");
     const ff = await loadFfmpegOnce();
-    setStage("Downloading video " + (resolutionOf(video) ? resolutionOf(video) + "p" : "480p") + " with sound");
+    setStage("ভিডিও ডাউনলোডিং…");
     const videoData = await fetchFile(PROXY + encodeURIComponent(video.url));
-    setStage("Downloading audio");
+    setStage("ভিডিও ডাউনলোডিং…");
     const audioData = await fetchFile(PROXY + encodeURIComponent(audio.url));
-    setStage("Combining v2");
-    setStage("Combining v2 " + videoData.length + "/" + audioData.length);
+    setStage("ভিডিও ডাউনলোডিং…");
+    setStage("ভিডিও ডাউনলোডিং…");
     await ff.writeFile("v.mp4", videoData);
     await ff.writeFile("a.m4a", audioData);
-    setStage("Running ffmpeg");
+    setStage("ভিডিও ডাউনলোডিং…");
     await ff.exec(["-i", "v.mp4", "-i", "a.m4a", "-c", "copy", "-shortest", "out.mp4"]);
-    setStage("Reading output");
+    setStage("ভিডিও ডাউনলোডিং…");
     const outData = await ff.readFile("out.mp4");
     const blob = new Blob([outData.buffer], { type: "video/mp4" });
     if (browserState.blobUrl) URL.revokeObjectURL(browserState.blobUrl);

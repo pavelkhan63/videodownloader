@@ -19,7 +19,8 @@ function isAudioOnly(f) { const t = formatText(f); return /audio[\s\-_]*only/i.t
 function isVideoOnly(f) { const t = formatText(f); return /video[\s\-_]*only/i.test(t) || /no\s+audio/i.test(t) || /without\s+audio/i.test(t) || /has\s+no\s+audio/i.test(t) || /no\s+sound/i.test(t) || /without\s+sound/i.test(t); }
 function setStage(stage) { browserState.stage = stage; try { if (window.showMessage) window.showMessage("Browser merge: " + stage); } catch (e) {} }
 function sizeText(bytes) { return (bytes / 1048576).toFixed(1) + " MB"; }
-function pickVideo(videoOnly) { const mp4 = videoOnly.filter(function (f) { return /mp4/i.test(formatText(f)); }); const list = mp4.length ? mp4 : videoOnly; return list.slice().sort(function (a, b) { const da = Math.abs(resolutionOf(a) - 720), db = Math.abs(resolutionOf(b) - 720); if (da !== db) return da - db; return resolutionOf(b) - resolutionOf(a); })[0]; }
+// Browser merge is fixed at 480p: never pick a video-only format above 480p. If 480p is not available, pick the closest lower resolution (360p, then 240p).
+function pickVideo(videoOnly) { const mp4 = videoOnly.filter(function (f) { return /mp4/i.test(formatText(f)); }); const list = mp4.length ? mp4 : videoOnly; const atOrBelow = list.filter(function (f) { const r = resolutionOf(f); return r > 0 && r <= 480; }); if (atOrBelow.length) return atOrBelow.slice().sort(function (a, b) { return resolutionOf(b) - resolutionOf(a); })[0]; return list.slice().sort(function (a, b) { const ra = resolutionOf(a) || 99999, rb = resolutionOf(b) || 99999; return ra - rb; })[0]; }
 function kbpsOf(f) { const m = formatText(f).match(/(\d+)\s*kbps/i); return m ? parseInt(m[1], 10) : 0; }
 function pickAudio(audioOnly) { const m4a = audioOnly.filter(function (f) { return /m4a/i.test(formatText(f)); }); const list = m4a.length ? m4a : audioOnly; return list.slice().sort(function (a, b) { return kbpsOf(b) - kbpsOf(a); })[0]; }
 async function loadFfmpegOnce() { if (ffmpegInstance && ffmpegInstance.loaded) return ffmpegInstance; if (!ffmpegLoading) { ffmpegLoading = (async function () { const ff = new FFmpeg(); await ff.load({ coreURL: CORE_URL, wasmURL: WASM_URL }); ffmpegInstance = ff; return ff; })(); ffmpegLoading.catch(function () { ffmpegLoading = null; }); } return ffmpegLoading; }
@@ -32,7 +33,7 @@ async function runBrowserMerge() {
     if (!video || !audio) throw new Error("No video-only or audio-only format available for browser merge.");
     setStage("Loading FFmpeg");
     const ff = await loadFfmpegOnce();
-    setStage("Downloading video");
+    setStage("Downloading video " + (resolutionOf(video) ? resolutionOf(video) + "p" : "480p") + " with sound");
     const videoData = await fetchFile(PROXY + encodeURIComponent(video.url));
     setStage("Downloading audio");
     const audioData = await fetchFile(PROXY + encodeURIComponent(audio.url));
@@ -71,7 +72,7 @@ window.fetch = async function () {
   const input = arguments[0];
   const url = typeof input === "string" ? input : (input && input.url ? input.url : "");
   if (url.indexOf("/api/merge/status") >= 0) {
-    try { const job = new URL(url).searchParams.get("job"); if (job === BROWSER_JOB) { if (browserState.status === "ready") return jsonResponse({ status: "ready" }); if (browserState.status === "error") return jsonResponse({ status: "error", ok: false, error: browserState.error }); return jsonResponse({ status: "processing", stage: browserState.stage || "Combining" }); } } catch (e) {}
+    try { const job = new URL(url).searchParams.get("job"); if (job === BROWSER_JOB) { if (browserState.status === "ready") return jsonResponse({ status: "ready" }); if (browserState.status === "error") return jsonResponse({ status: "error", error: browserState.error }); } } catch (e) {}
     return originalFetch.apply(window, arguments);
   }
   if (url.indexOf("/api/merge?url=") >= 0 && url.indexOf("/api/merge2") < 0) {
@@ -82,7 +83,7 @@ window.fetch = async function () {
   }
   if (url.indexOf("/api/resolve") >= 0) {
     const res = await originalFetch.apply(window, arguments);
-    try { const data = await res.clone().json(); cachedFormats = Array.isArray(data.formats) ? data.formats : []; cachedTitle = data.title || ""; if (browserState.status !== "processing") browserState = { status: "idle", stage: "", blobUrl: "", sizeText: "", fileName: "video-with-sound.mp4", error: "" }; browserAdOpened = false; } catch (e) {}
+    try { const data = await res.clone().json(); cachedFormats = Array.isArray(data.formats) ? data.formats : []; cachedTitle = data.title || ""; if (browserState.status !== "processing") browserState = { status: "idle", stage: "", blobUrl: "", sizeText: "", fileName: "video-with-sound.mp4", error: "" }; } catch (e) {}
     return res;
   }
   return originalFetch.apply(window, arguments);
@@ -94,7 +95,7 @@ if (downloadBtn) {
     e.stopImmediatePropagation();
     e.stopPropagation();
     e.preventDefault();
-    if (!browserAdOpened) { browserAdOpened = true; window.open(AD_LINK, "_blank", "noopener,noreferrer"); try { if (window.showMessage) window.showMessage("Sponsored link opened in a new tab. Press Download again to start the download."); } catch (err) {} return; }
+    if (!browserAdOpened) { browserAdOpened = true; window.open(AD_LINK, "_blank", "noopener,noreferrer"); try { if (window.showMessage) window.showMessage("Sponsored link opened in a new tab. Press Download again to get your video."); } catch (e) {} }
     const a = document.createElement("a");
     a.href = browserState.blobUrl;
     a.download = browserState.fileName;
@@ -106,6 +107,6 @@ if (downloadBtn) {
 const messageEl = document.getElementById("message");
 if (messageEl && window.MutationObserver) {
   new MutationObserver(function () {
-    if (browserState.status === "ready" && browserState.blobUrl && browserState.sizeText && messageEl.innerHTML.indexOf("Ready") >= 0 && messageEl.innerHTML.indexOf(browserState.sizeText) < 0) { messageEl.innerHTML += "<br>MP4 with sound (" + browserState.sizeText + ")"; }
+    if (browserState.status === "ready" && browserState.blobUrl && browserState.sizeText && messageEl.innerHTML.indexOf("Ready") >= 0 && messageEl.innerHTML.indexOf(browserState.sizeText) < 0) { messageEl.innerHTML += "<br>Ready, MP4 with sound (" + browserState.sizeText + ")"; }
   }).observe(messageEl, { childList: true, characterData: true, subtree: true });
 }

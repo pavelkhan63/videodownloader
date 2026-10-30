@@ -42,17 +42,48 @@ function pickVideo(videoOnly, wanted) { const wantedQuality = wanted || selected
 function kbpsOf(f) { const m = formatText(f).match(/(\d+)\s*kbps/i); return m ? parseInt(m[1], 10) : 0; }
 function pickAudio(audioOnly) { const m4a = audioOnly.filter(function (f) { return /m4a/i.test(formatText(f)); }); const list = m4a.length ? m4a : audioOnly; return list.slice().sort(function (a, b) { return kbpsOf(b) - kbpsOf(a); })[0]; }
 async function loadFfmpegOnce() { if (ffmpegInstance && ffmpegInstance.loaded) return ffmpegInstance; if (!ffmpegLoading) { ffmpegLoading = (async function () { const ff = new FFmpeg(); await ff.load({ coreURL: CORE_URL, wasmURL: WASM_URL }); ffmpegInstance = ff; return ff; })(); ffmpegLoading.catch(function () { ffmpegLoading = null; }); } return ffmpegLoading; }
+// Total size for a format URL, taken only from that URL itself: the googlevideo clen parameter supplied by the backend, never a hard-coded or invented size. Falls back to 0 when the URL carries no size, so no fake % is ever shown.
+function totalSizeOf(url) { try { const clen = new URL(url).searchParams.get("clen"); const n = clen ? parseInt(clen, 10) : 0; return n > 0 ? n : 0; } catch (e) { return 0; } }
+async function readStreamToUint8(res, stageLabel, startBytes, totalBytes) {
+  const reader = res.body.getReader(); const chunks = []; let received = 0;
+  while (true) { const step = await reader.read(); if (step.done) break; if (step.value) { chunks.push(step.value); received += step.value.length; reportProgress(stageLabel, startBytes + received, totalBytes); } }
+  const out = new Uint8Array(received); let off = 0; chunks.forEach(function (c) { out.set(c, off); off += c.length; });
+  return out;
+}
+// Live progress that keeps moving even if the proxy buffers one whole response: first try 4 MB HTTP Range chunks, reporting % after every completed chunk. A Range request that answers 206 is a real chunk; a 200 answer is the whole file, so it is read as the complete file (never treated as a partial chunk, which would corrupt the output). If Range is not honoured, fall back to a single streamed download, using clen (or Content-Length) as the total, so % can still be computed from bytes actually received. No fake % is shown: without a known total, only MB downloaded is reported.
 async function downloadWithProgress(url, stageLabel) {
+  const knownTotal = totalSizeOf(url);
+  if (knownTotal > 0) {
+    try {
+      const CHUNK = 4 * 1024 * 1024; const parts = []; let downloaded = 0;
+      reportProgress(stageLabel, 0, knownTotal);
+      while (downloaded < knownTotal) {
+        const end = Math.min(downloaded + CHUNK - 1, knownTotal - 1);
+        const res = await fetch(PROXY + encodeURIComponent(url), { headers: { Range: "bytes=" + downloaded + "-" + end } });
+        if (!res.ok) throw new Error("Download failed: " + res.status);
+        if (res.status === 200 && downloaded === 0) {
+          if (!res.body) break;
+          return await readStreamToUint8(res, stageLabel, 0, knownTotal);
+        }
+        if (res.status !== 206) throw new Error("Download failed: " + res.status);
+        if (!res.body) throw new Error("Download failed: empty response");
+        const chunk = await readStreamToUint8(res, stageLabel, downloaded, knownTotal);
+        if (!chunk.length) throw new Error("Download failed: empty chunk");
+        parts.push(chunk); downloaded += chunk.length;
+        reportProgress(stageLabel, downloaded, knownTotal);
+      }
+      const out = new Uint8Array(downloaded); let off = 0; parts.forEach(function (c) { out.set(c, off); off += c.length; });
+      if (out.length) return out;
+    } catch (rangeErr) {
+      // Fall through to the single streamed download below; the file is re-downloaded in full, so a failed chunk never corrupts it.
+    }
+  }
   try {
     const res = await fetch(PROXY + encodeURIComponent(url));
     if (!res.ok) throw new Error("Download failed: " + res.status);
-    const total = Number(res.headers.get("Content-Length")) || 0;
+    const total = Number(res.headers.get("Content-Length")) || knownTotal || 0;
     if (!res.body) { const data = await fetchFile(PROXY + encodeURIComponent(url)); return data; }
-    const reader = res.body.getReader(); const chunks = []; let received = 0;
-    reportProgress(stageLabel, 0, total);
-    while (true) { const step = await reader.read(); if (step.done) break; if (step.value) { chunks.push(step.value); received += step.value.length; reportProgress(stageLabel, received, total); } }
-    const out = new Uint8Array(received); let off = 0; chunks.forEach(function (c) { out.set(c, off); off += c.length; });
-    return out;
+    return await readStreamToUint8(res, stageLabel, 0, total);
   } catch (e) {
     try { const data = await fetchFile(PROXY + encodeURIComponent(url)); if (data && data.length) return data; } catch (ignored) {}
     throw e;
@@ -79,10 +110,6 @@ async function runBrowserMerge(runId) {
     setStage("মার্জ করা হচ্ছে…");
     await ff.writeFile("v.mp4", videoData);
     await ff.writeFile("a.m4a", audioData);
-    // Direct merge, like the proven direct merge: await exec, then readFile,
-    // then Blob from the returned bytes themselves (never out.buffer, whose
-    // underlying WASM buffer can be far larger than the output, or detached).
-    // This block is wrapped so a failure is shown exactly, never left silent.
     try {
       const code = await ff.exec(["-i", "v.mp4", "-i", "a.m4a", "-c", "copy", "-shortest", "out.mp4"]);
       if (typeof code === "number" && code !== 0) throw new Error("ffmpeg exec failed with exit code " + code);
@@ -161,9 +188,6 @@ if (downloadBtn) {
     e.stopImmediatePropagation();
     e.stopPropagation();
     e.preventDefault();
-    // Ready merged file: one press starts the phone/browser download at once.
-    // The Sponsored link opens alongside only on the first press for this video;
-    // if it was already opened when the merge was started, later presses download only.
     if (!browserAdOpened && !window.__ricipeAdOpened) { browserAdOpened = true; window.__ricipeAdOpened = true; window.open(AD_LINK, "_blank", "noopener,noreferrer"); }
     const a = document.createElement("a");
     a.href = browserState.blobUrl;

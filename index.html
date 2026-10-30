@@ -11,7 +11,7 @@
 .wrap{max-width:900px;margin:auto;padding:22px 18px 44px}.nav{display:flex;align-items:center;gap:12px;font-weight:800;font-size:19px}.logo{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 8px 25px #7c5cff55}.logo svg{width:23px}
 .hero{text-align:center;padding:54px 0 28px}.pill{display:inline-flex;align-items:center;gap:8px;border:1px solid #ffffff20;background:#ffffff09;border-radius:999px;padding:7px 12px;color:#c8d1ea;font-size:13px}.pill img{display:block;height:28px;width:auto;max-width:200px}.dot{width:7px;height:7px;background:#36dfaa;border-radius:50%}h1{font-size:clamp(35px,7vw,58px);line-height:1.1;letter-spacing:-1.7px;margin:20px 0 12px}.gradient{background:linear-gradient(90deg,#a99aff,#56e5d2);-webkit-background-clip:text;background-clip:text;color:transparent}.sub{max-width:570px;margin:auto;color:var(--muted);line-height:1.8;font-size:15px}
 .panel{background:linear-gradient(160deg,#19213aee,#11182beF);border:1px solid #ffffff18;border-radius:24px;padding:22px;box-shadow:0 22px 70px #0005;max-width:730px;margin:22px auto}.platforms{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:0 0 22px}.platform{border:1px solid #ffffff18;border-radius:12px;padding:9px 12px;color:#d9e0f2;font-size:13px;background:#ffffff06}.inputrow{display:flex;gap:10px}.url{flex:1;min-width:0;border:1px solid #ffffff20;border-radius:13px;background:#080d1b;color:white;padding:16px;font-size:15px;outline:none}.url:focus{border-color:#8b77ff;box-shadow:0 0 0 3px #7c5cff25}.btn{border:0;border-radius:13px;padding:0 21px;background:linear-gradient(135deg,#8265ff,#5e48df);color:white;font-weight:750;font-size:15px;cursor:pointer;min-height:52px}.btn:hover{filter:brightness(1.1)}.options{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:17px}.quality{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px}select{background:#0b1122;color:#fff;border:1px solid #ffffff20;border-radius:10px;padding:10px 12px;font-size:14px}.hint{font-size:12px;color:#8492b3;line-height:1.7;margin:15px 2px 0}.message{display:none;margin-top:15px;padding:13px 14px;border-radius:12px;background:#29223c;border:1px solid #65509c;color:#e5ddff;font-size:13px;line-height:1.7}.features{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:28px 0}.feature{padding:19px;background:#ffffff07;border:1px solid #ffffff12;border-radius:18px}.ico{font-size:23px}.feature h3{font-size:15px;margin:12px 0 6px}.feature p{font-size:13px;line-height:1.7;color:var(--muted);margin:0}.ad{position:relative;display:flex;justify-content:center;align-items:center;margin:20px auto;max-width:100%;overflow:hidden;min-height:20px}.ad-label{position:absolute;top:0;left:0;font-size:9px;letter-spacing:.08em;color:#73809d;text-transform:uppercase}.ad-top{padding-top:16px;min-height:106px}.ad-box{padding-top:16px;min-height:266px;max-width:320px}.download-btn{display:block;width:100%;margin-top:12px;background:linear-gradient(135deg,#16a987,#087b70)}[hidden]{display:none!important}.foot{text-align:center;color:#7f8ba8;font-size:12px;line-height:1.8;margin-top:28px}.foot a{color:#b8adff}@media(max-width:600px){.ad-top{justify-content:flex-start;overflow-x:auto}.hero{padding-top:38px}.panel{padding:16px;border-radius:19px}.inputrow{flex-direction:column}.btn{width:100%}.features{grid-template-columns:1fr}.options{align-items:flex-start}.quality{width:100%;justify-content:space-between}.wrap{padding-inline:14px}}
-.ad-top iframe{max-width:100%}.ad-box iframe{max-width:100%}
+.ad-top iframe{max-width:100%}.ad-box iframe{max-width:100%}.preview{margin-top:15px;padding:14px;border:1px solid #ffffff18;border-radius:16px;background:#ffffff07}.preview img{display:block;width:100%;border-radius:12px}.preview-title{font-weight:800;font-size:16px;line-height:1.5;margin:12px 2px 4px}.preview-desc{color:var(--muted);font-size:13px;line-height:1.7;margin:0 2px}
 </style>
 </head>
 <body><main class="wrap">
@@ -28,7 +28,7 @@
 <div class="platforms"><span class="platform">▶ YouTube</span><span class="platform">f Facebook</span><span class="platform">◎ Instagram</span><span class="platform">♪ TikTok</span></div>
 <form id="form"><div class="inputrow"><input id="url" class="url" type="url" placeholder="ভিডিও লিংক এখানে পেস্ট করুন…" aria-label="ভিডিও লিংক" required><button class="btn" type="submit">ডাউনলোড প্রস্তুত করুন →</button></div>
 <div class="options"><label class="quality" for="quality">ভিডিও কোয়ালিটি <select id="quality"><option>1080p Full HD</option><option>720p HD</option><option selected>480p</option><option>360p</option><option>240p</option><option>144p</option></select></label></div></form>
-<div id="message" class="message" role="status"></div>
+<div id="preview" class="preview" hidden><div id="previewContent"></div></div><div id="message" class="message" role="status"></div>
 <button id="downloadBtn" class="btn download-btn" type="button" hidden>ডাউনলোড করুন ↓</button>
 <div class="ad ad-box" aria-label="বিজ্ঞাপন"><span class="ad-label">Advertisement</span><script>atOptions = {
   'key' : '528f8568f38cb80a1ba85c7bd3797810',
@@ -44,12 +44,12 @@
 </main>
 <script>
 const API='https://allvideodownload-5cdx.onrender.com';
-const form=document.getElementById('form'), urlInput=document.getElementById('url'), qualitySelect=document.getElementById('quality'), msg=document.getElementById('message'), downloadBtn=document.getElementById('downloadBtn');
+const form=document.getElementById('form'), urlInput=document.getElementById('url'), qualitySelect=document.getElementById('quality'), msg=document.getElementById('message'), downloadBtn=document.getElementById('downloadBtn'), preview=document.getElementById('preview'), previewContent=document.getElementById('previewContent');
 const adLink='https://asiafilm.org/4/71f92f1c17a327e98497060f4c8897d9';
 let validVideoUrl='', adOpened=false, downloadUrl='', downloadReady=false, mergeTimer=null, baseInfoHtml='';
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function showMessage(text){msg.style.display='block';msg.textContent=String(text||'').indexOf('Browser merge:')===0?'ভিডিও ডাউনলোডিং…':text;}
-function showResult(html){msg.style.display='block';msg.innerHTML=html;}
+function showResult(html){msg.style.display='block';msg.innerHTML=html;}function renderPreview(data){var parts=[];if(data.author)parts.push(data.author);if(data.duration)parts.push(data.duration);previewContent.innerHTML=(data.thumbnail?'<img src="'+esc(data.thumbnail)+'" alt="'+esc(data.title||'')+'">':'')+'<div class="preview-title">'+esc(data.title||'')+'</div><p class="preview-desc">'+esc(parts.join(' · '))+'</p>';preview.appendChild(downloadBtn);preview.hidden=false;downloadBtn.hidden=false;}function hidePreview(){preview.hidden=true;previewContent.innerHTML='';}
 function stopMerge(){if(mergeTimer){clearInterval(mergeTimer);mergeTimer=null;}}
 function formatText(f){return String((f.label||'')+' '+(f.note||'')+' '+(f.type||'')+' '+(f.kind||''));}
 function resolutionOf(f){const m=String(f.label||'').match(/(\d{3,4})\s*p/i);return m?parseInt(m[1],10):0;}
@@ -100,7 +100,7 @@ async function startMerge2(videoUrl,audioUrl){
 form.addEventListener('submit',async function(e){
   e.preventDefault();
   stopMerge();
-  downloadUrl=''; downloadReady=false; baseInfoHtml='';
+  downloadUrl=''; downloadReady=false; baseInfoHtml=''; hidePreview();
   let u;
   try{u=new URL(urlInput.value.trim())}catch(err){downloadBtn.hidden=true;showMessage('সঠিক ভিডিও লিংক দিন।');return;}
   const host=u.hostname.toLowerCase().replace(/^www\./,'');
@@ -111,11 +111,11 @@ form.addEventListener('submit',async function(e){
   try{
     const res=await fetch(API+'/api/resolve?url='+encodeURIComponent(u.href));
     const data=await res.json().catch(function(){return {};});
-    if(!res.ok||!data.ok){downloadBtn.hidden=true;showMessage(data.error||data.message||('ব্যাকএন্ড ত্রুটি: '+res.status));return;}
+    if(!res.ok||!data.ok){downloadBtn.hidden=true;hidePreview();showMessage(data.error||data.message||('ব্যাকএন্ড ত্রুটি: '+res.status));return;}
     const formats=Array.isArray(data.formats)?data.formats:[];
-    baseInfoHtml='<strong>'+esc(data.title||'')+'</strong><br>প্ল্যাটফর্ম: '+esc(data.platform||'')+' · লেখক: '+esc(data.author||'')+' · সময়: '+esc(data.duration||'');
-    if(data.thumbnail){baseInfoHtml+='<br><img src="'+esc(data.thumbnail)+'" alt="" style="max-width:100%;border-radius:12px;margin-top:10px">';}
-    if(data.note){baseInfoHtml+='<br>নোট: '+esc(data.note);}
+    renderPreview(data);
+    /* instant preview rendered by renderPreview */
+    /* instant preview rendered by renderPreview */
     const wanted=qualityValue();
     if(isFacebookReq(data,host)){
       const explicitWithSound=formats.filter(function(f){return isWithSound(f)&&(/MP4\s*—\s*(HD|SD)\b/i.test(String(f.label||''))||/with\s+sound/i.test(String(f.label||'')));});
@@ -167,7 +167,7 @@ form.addEventListener('submit',async function(e){
     }
     downloadBtn.hidden=true;
     showMessage('এই ভিডিওর জন্য ডাউনলোডযোগ্য ফরম্যাট পাওয়া যায়নি।');
-  }catch(err){ downloadBtn.hidden=true; showMessage('ব্যাকএন্ডের সঙ্গে যোগাযোগ করা যায়নি: '+err.message); }
+  }catch(err){ downloadBtn.hidden=true; hidePreview(); showMessage('ব্যাকএন্ডের সঙ্গে যোগাযোগ করা যায়নি: '+err.message); }
 });
 downloadBtn.addEventListener('click',function(){
  if(!validVideoUrl){showMessage('আগে ভিডিও লিংক দিন এবং “ডাউনলোড প্রস্তুত করুন” চাপুন।');return;}
